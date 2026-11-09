@@ -24,7 +24,7 @@ jobs:
       # Load the committed file into GITHUB_ENV
       - name: Load environment variables from file
         run: |
-          if [ -f versions.env ]; then
+          if [ -f variables.env ]; then
             # Strips empty lines and comments (#) before appending
             grep -v '^\s*#' variables.env | grep -v '^\s*$' >> "$GITHUB_ENV"
           else

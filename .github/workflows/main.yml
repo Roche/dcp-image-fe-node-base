@@ -1,0 +1,58 @@
+name: Container Build
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  container-build:
+    runs-on: ubuntu-latest
+
+    env:
+      REGISTRY: ghcr.io
+      NGINX_BASE_IMAGE: "docker.io/library/nginx:1.30.6-alpine3.24@sha256:84ed8c0dd296c188bfc24ed506f46589e9285fb0b11cf3a04d91d524d3067e11"
+      GitVersion_SemVer: "9.0.0"
+
+    steps:
+      # 1. Check out repository so Dockerfile and build context exist
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Lowercase repository name for GHCR compliance
+      - name: Prepare image name
+        id: image_meta
+        run: |
+          IMAGE_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "image=${{ env.REGISTRY }}/${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+
+      # 3. Log in to GitHub Container Registry
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 4. Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 5. Build and push image
+      - name: Build and push container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          no-cache: true
+          push: true
+          build-args: |
+            NGINX_BASE_IMAGE=${{ env.NGINX_BASE_IMAGE }}
+          tags: |
+            ${{ steps.image_meta.outputs.image }}:${{ env.GitVersion_SemVer }}
+            ${{ steps.image_meta.outputs.image }}:latest
